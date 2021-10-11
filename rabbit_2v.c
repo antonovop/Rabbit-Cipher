@@ -16,6 +16,8 @@ int f_next(const int *, int *, int, int *);
 
 int *s_next(const int *);
 
+int *c_reinitialization(const int *, const int *);
+
 int main() {
     int f = 0;
     int first_f = 0;
@@ -45,17 +47,38 @@ int main() {
     printf("\n");
 
     //next states for c and x
-    for (int j = 0; j <= 4; j++) {
-        int *c_next_state = c_next(c_zero_state, &f, &first_f);
-        for (int l = 0; l <= 7; l++) {
-            c_zero_state[l] = c_next_state[l];
+    for (int j = 0; j <= 10; j++) {
+        if ((j + 2) % 5 != 0) {
+            int *c_next_state = c_next(c_zero_state, &f, &first_f);
+            for (int l = 0; l <= 7; l++) {
+                c_zero_state[l] = c_next_state[l];
+            }
+            int *x_next_state = x_next(x_zero_state, c_zero_state);
+            for (int p = 0; p <= 7; p++) {
+                x_zero_state[p] = x_next_state[p];
+            }
+            int *s_next_state = s_next(x_zero_state);
+            // далее - XOR с частями текста по 16 бит
+        } else {
+            int *c_next_state = c_next(c_zero_state, &f, &first_f);
+            for (int l = 0; l <= 7; l++) {
+                c_zero_state[l] = c_next_state[l];
+            }
+            int *x_next_state = x_next(x_zero_state, c_zero_state);
+            for (int p = 0; p <= 7; p++) {
+                x_zero_state[p] = x_next_state[p];
+            }
+            int *c_initialization = c_reinitialization(x_zero_state, c_zero_state);
+            for (int l = 0; l <= 7; l++) {
+                c_zero_state[l] = c_initialization[l];
+            }
+            x_next(x_zero_state, c_zero_state);
+            for (int p = 0; p <= 7; p++) {
+                x_zero_state[p] = x_next_state[p];
+            }
+            int *s_next_state = s_next(x_zero_state);
+            // далее - XOR с частями текста по 16 бит
         }
-        int *x_next_state = x_next(x_zero_state, c_zero_state);
-        for (int p = 0; p <= 7; p++) {
-            x_zero_state[p] = x_next_state[p];
-        }
-        int *s_next_state = s_next(x_zero_state);
-        // далее - XOR с частями текста по 16 бит
     }
 
     return 0;
@@ -153,8 +176,7 @@ int *x_next(const int *x_zero, const int *c_zero) {
 }
 
 // s_next
-int *s_next(const int *x_state)
-{
+int *s_next(const int *x_state) {
     int *s_next_state = calloc(8, sizeof(int));
     s_next_state[0] = (x_state[0] >> 16) ^ (x_state[5] & ((1 << x_state[5]) - 1));
     s_next_state[1] = (x_state[0] & ((1 << x_state[0]) - 1)) ^ (x_state[3] >> 16);
@@ -167,10 +189,18 @@ int *s_next(const int *x_state)
     return s_next_state;
 }
 
+// counter variables re-initialization
+int *c_reinitialization(const int *x_state, const int *c_state) {
+    int *c_reinit = calloc(8, sizeof(int));
+    for (int j = 0; j <= 7; j++) {
+    c_reinit[j] = c_state[j] ^ x_state[(j+4) % 8];
+    }
+    return c_reinit;
+}
 
 // Issues :
 // 1. mod 2^32 (all state variables functions)
 // 2. a[i] - negative or positive? (f_next and c_next)
 // 3. >> 32 not working (x_next)
 // 4. for_g XOR (^) not working [long long int type] (x_next)
-// 5. how to get [0,15] and [16,31] bits correctly? (s_next)
+// 5. how to get [0,15] and [16,31] bites correctly? (s_next)
